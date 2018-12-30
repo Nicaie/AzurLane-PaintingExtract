@@ -6,22 +6,16 @@ import time
 
 import wx
 
-from Classes import noname, InfoClasses
+from Classes import noname
 from Functions import function
 
 
 class RestoreThread(threading.Thread):
 
-    def __init__(self, id_thread, name, able: InfoClasses.PerInfoList, unable: InfoClasses.PerInfoList, parent, setting,
-                 full, names, save_path):
+    def __init__(self, id_thread, name, work_class):
         threading.Thread.__init__(self)
-        self.full = full
-        self.names = names
-        self.setting = setting
-        self.format = parent
 
-        self.able = able
-        self.unable = unable
+        self.worker = work_class
 
         self.threadID = id_thread
 
@@ -29,24 +23,42 @@ class RestoreThread(threading.Thread):
 
         self.index = 0
 
+        self.list = work_class.restore_list
+
+        self.format = work_class.form
+        self.names = work_class.names
+
+        self.mesh_list_path_dir = work_class.mesh_list_path_dir
+        self.tex_list_path_dir = work_class.tex_list_path_dir
+        self.save_path = work_class.save_path,
+
         self.stop = False
 
-        self.save_path = save_path
+        self.setting = work_class.setting
+
+        self.unable_restore_list = work_class.unable_restore_list
+        self.full = work_class.full
 
     def run(self):
-        for self.index in range(len(self.able)):
-            if self.index < len(self.able) and not self.stop:
-                now_info: InfoClasses.PerInfo = self.able[self.index]
-                self.format.m_staticText_now.SetLabel("当前：%s" % now_info.name_cn)
-                choice = self.format.m_listBox_log.Append("开始第%d个！为：%s 类型-直接还原" % (self.index + 1, now_info.name_cn))
+        for self.index in range(len(self.list)):
+            if self.index < len(self.list) and not self.stop:
+                name = self.list[self.index]
+                if name not in self.names.keys():
+                    text = name
+                else:
+                    text = self.names[name]
+                self.format.m_staticText_now.SetLabel("当前：%s" % text)
+                choice = self.format.m_listBox_log.Append("开始第%d个！为：%s 类型-直接还原" % (self.index + 1, text))
                 self.format.m_listBox_log.SetSelection(choice)
-
-                now_info.set_ex_as_cn = self.setting["export_with_cn"]
-
+                if self.setting["export_with_cn"]:
+                    names = self.names
+                else:
+                    names = {}
                 if self.setting['div_use'] == 0:
                     if self.setting["div_type"] == 1:
-
-                        save_path = f"{self.save_path}\\{now_info.name_cn}"
+                        key_use = name.split("_")[0]
+                        dir_name = self.names[key_use]
+                        save_path = f"{self.save_path}\\{dir_name}"
                         os.makedirs(save_path, exist_ok=True)
 
                     elif self.setting["div_type"] == 2:
@@ -54,17 +66,17 @@ class RestoreThread(threading.Thread):
                         pattern_power = re.compile(r'^[a-zA-Z0-9_]+_[gG]$')
                         pattern_marry = re.compile(r'^[a-zA-Z0-9_]+_[hH]$')
                         pattern_self = re.compile(r'^[a-zA-Z0-9_]+$')
-                        if pattern_skin.match(now_info.name) is not None:
+                        if pattern_skin.match(name) is not None:
 
                             save_path = f"{self.save_path}\\皮肤"
 
-                        elif pattern_marry.match(now_info.name) is not None:
+                        elif pattern_marry.match(name) is not None:
                             save_path = f"{self.save_path}\\婚纱"
 
-                        elif pattern_power.match(now_info.name) is not None:
+                        elif pattern_power.match(name) is not None:
                             save_path = f"{self.save_path}\\改造"
 
-                        elif pattern_self.match(now_info.name) is not None:
+                        elif pattern_self.match(name) is not None:
                             save_path = f"{self.save_path}\\原皮"
                         else:
                             save_path = f"{self.save_path}\\其他"
@@ -74,7 +86,7 @@ class RestoreThread(threading.Thread):
 
                 elif self.setting['div_use'] == 1:
                     list_work = self.setting['divide_list']
-                    paths = filter(lambda x: re.match(x['pattern'], now_info.name), list_work[1:])
+                    paths = filter(lambda x: re.match(x['pattern'], name), list_work[1:])
                     paths = list(map(lambda x: f"{self.save_path}\\{x['dir']}", paths))
 
                     if not paths:
@@ -87,14 +99,13 @@ class RestoreThread(threading.Thread):
 
                 os.makedirs(save_path, exist_ok=True)
 
-                now_info.add_save(save_path)
-
                 time_1 = time.time()
-                is_good, info = function.restore_tool(now_info)
+                is_good, info = function.restore_tool(name, names, self.mesh_list_path_dir, self.tex_list_path_dir,
+                                                      save_path)
                 time_1 = time.time() - time_1
-                self.format.m_listBox_log.Append("      tex文件：%s" % now_info.tex_path)
-                self.format.m_listBox_log.Append("      mesh文件：%s" % now_info.mesh_path)
-                self.format.m_listBox_log.Append("      保存位置：%s" % now_info.save_path)
+                self.format.m_listBox_log.Append("      tex文件：%s" % self.tex_list_path_dir[name])
+                self.format.m_listBox_log.Append("      mesh文件：%s" % self.mesh_list_path_dir[name])
+                self.format.m_listBox_log.Append("      保存位置：%s" % save_path + "\\" + text + '.png')
                 if not is_good:
                     self.format.append_error(info)
 
@@ -103,8 +114,8 @@ class RestoreThread(threading.Thread):
                 choice = self.format.m_listBox_log.Append("")
                 self.format.m_listBox_log.SetSelection(choice)
 
-                val_percent = str(round(100 * (self.index / len(self.able)), 2))
-                val = function.re_int(100 * (self.index / len(self.able)))
+                val_percent = str(round(100 * (self.index / len(self.list)), 2))
+                val = function.re_int(100 * (self.index / len(self.list)))
                 self.format.m_staticText_all.SetLabel("总进度：%s %%" % val_percent)
                 self.format.m_gauge_all.SetValue(val)
                 self.index += 1
@@ -113,13 +124,15 @@ class RestoreThread(threading.Thread):
             num = 0
             os.makedirs(f'{self.save_path}\\拷贝', exist_ok=True)
 
-            for name in self.unable:
-                name: InfoClasses.PerInfo = name
-                name.add_save(f'{self.save_path}\\拷贝')
+            for name in self.unable_restore_list:
                 num += 1
-                shutil.copyfile(name.tex_path, name.save_path)
 
-                self.format.m_gauge_all.SetValue(function.re_int(100 * (num / len(self.unable))))
+                try:
+                    shutil.copyfile(self.tex_list_path_dir[name], f'{self.save_path}\\拷贝\\{self.names[name]}.png')
+                except KeyError:
+                    shutil.copyfile(self.tex_list_path_dir[name], f'{self.save_path}\\拷贝\\{name}.png')
+
+                self.format.m_gauge_all.SetValue(function.re_int(100 * (num / len(self.unable_restore_list))))
 
         else:
             pass
@@ -144,18 +157,23 @@ class RestoreThread(threading.Thread):
     def add_save_path(self, save_path: str):
         self.save_path = save_path
 
-    def update_value(self, able, unable):
-        self.able = able
-        self.unable = unable
+    def update_list(self, restore_list, unable_restore_list):
+        self.list = restore_list
+        self.unable_restore_list = unable_restore_list
 
 
 class QuickRestore(threading.Thread):
 
-    def __init__(self, info: InfoClasses.PerInfo, father: noname.MyFrame1 = None, work_path='', full=None,
+    def __init__(self, index, list_tex, list_mesh=None, father: noname.MyFrame1 = None, work_path='', full=None,
                  back=2):
         threading.Thread.__init__(self)
 
-        self.info = info
+        self.tex = list_tex[index]
+        if list_mesh is None:
+            self.no_restore = True
+        else:
+            self.no_restore = False
+            self.mesh = list_mesh[index]
         self.father = father
 
         self.path = work_path
@@ -166,11 +184,11 @@ class QuickRestore(threading.Thread):
     def run(self):
         try:
             size = tuple(self.father.m_bitmap_show.GetSize())
-            if self.info.is_able_work:
-                pic = function.restore_tool_no_save(self.info.mesh_path, self.info.tex_path, size)
+            if not self.no_restore:
+                pic = function.restore_tool_no_save(self.mesh, self.tex, size)
 
             else:
-                pic = function.pic_transform(self.info.tex_path, size)
+                pic = function.pic_transform(self.tex, size)
 
             pic.save("%s\\temp.png" % self.path)
             temp = wx.Image('%s\\temp.png' % self.path, wx.BITMAP_TYPE_PNG)
