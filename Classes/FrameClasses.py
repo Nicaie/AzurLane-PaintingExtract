@@ -75,26 +75,39 @@ class MainFrame(noname.MyFrame1):
     # file load method
     # azur lane
     def load_tex(self, event):
-        self.painting.load_tex()
+        thread = threading.Thread(target=self.painting.load_tex)
+
+        thread.start()
 
     def load_Mesh(self, event):
-        self.painting.load_mesh()
+        thread = threading.Thread(target=self.painting.load_mesh)
+
+        thread.start()
 
     def load_body(self, event):
-        self.spine_cut.load_body()
+        thread = threading.Thread(target=self.spine_cut.load_body)
+
+        thread.start()
 
     def load_cut(self, event):
-        self.spine_cut.load_cuter()
+        thread = threading.Thread(target=self.spine_cut.load_cuter)
+
+        thread.start()
 
     def load_mesh_fold(self, event):
+        thread = threading.Thread(target=self.painting.load_mesh_fold)
 
-        self.painting.load_mesh_fold()
+        thread.start()
 
     def load_tex_fold(self, event):
-        self.painting.load_tex_fold()
+        thread = threading.Thread(target=self.painting.load_tex_fold)
+
+        thread.start()
 
     def load_tex_and_mesh(self, event):
-        self.painting.load_tex_and_mesh()
+        thread = threading.Thread(target=self.painting.load_tex_and_mesh)
+
+        thread.start()
 
     # choice
     def mesh_choice(self, event):
@@ -225,7 +238,7 @@ class MainFrame(noname.MyFrame1):
             self.Destroy()
             sys.exit()
         else:
-            if self.painting.restore is not None and self.painting.restore.is_alive():
+            if self.painting.restore.is_alive():
                 message = wx.MessageBox("还未全部完成，确认退出？", "警告", wx.YES_NO)
 
                 if message == wx.YES:
@@ -286,7 +299,7 @@ class MainFrame(noname.MyFrame1):
             message = wx.MessageBox("将启动AzurLaneLive2DExtract所在文件夹，\n运行并直接将live2D文件拖入即可。", '信息', wx.YES_NO)
             if message == wx.YES:
                 # os.system(r'start %s\\files\\lived\\AzurLaneLive2DExtract.exe' % self.start_path)
-                os.system(r'start %s\\files\\lived' % self.start_path)
+                os.system(r'start "%s\\files\\lived"' % self.start_path)
             else:
                 pass
         else:
@@ -328,30 +341,15 @@ class Setting(noname.MyDialog_Setting):
         temp = temp.ConvertToBitmap()
         self.m_bitmap2.SetBitmap(temp)
 
-        self.azur_lane_div_type = setting_dic["azur_lane"]["div_type"]
-        self.azur_lane_export_type = setting_dic["azur_lane"]["export_type"]
-        self.azur_lane_new_dir = setting_dic["azur_lane"]["new_dir"]
-        self.azur_lane_use_default = setting_dic["azur_lane"]['div_use']
-        self.azur_lane_with_cn = setting_dic["azur_lane"]["export_with_cn"]
-        self.azur_lane_tex_limit = setting_dic["azur_lane"]['tex_limit']
-        self.azur_lane_mesh_limit = setting_dic["azur_lane"]['mesh_limit']
-        self.azur_lane_divide_list = setting_dic["azur_lane"]['divide_list']
-        self.azur_lane_input_use = setting_dic["azur_lane"]["input_use"]
+        self.azur_lane_setting = InfoClasses.SettingHolder(setting_dic["azur_lane"])
+        self.full_setting = InfoClasses.SettingHolder(setting_dic["full"])
+        print(self.azur_lane_setting)
+        print(self.full_setting)
 
-        self.open_dir_after_finish = setting_dic["full"]["open_dir"]
-        self.skip_had = setting_dic["full"]["skip_had"]
-        self.auto_open_choice_pic = setting_dic["full"]["auto_open"]
-        self.finish_exit = setting_dic["full"]["finish_exit"]
-        self.clear_list = setting_dic["full"]['clear_list']
-        self.save_all = setting_dic["full"]['save_all']
-        self.dir_menu = setting_dic["full"]['dir_menu']
-        self.dir_bg = setting_dic['full']['dir_bg']
 
         self.setting = setting_dic
         self.default = default
 
-        self.azur_lane_default_tex_dir = self.default["azur_lane"]['default_tex_dir']
-        self.azur_lane_default_mesh_dir = self.default["azur_lane"]['default_mesh_dir']
 
         self.IsChange = False
         self.lock = self.default["lock"]
@@ -720,7 +718,7 @@ class Setting(noname.MyDialog_Setting):
 
         dialog.Show()
 
-        self.dir_menu, self.dir_bg = dialog.gets()
+        # self.dir_menu, self.dir_bg = dialog.gets()
 
     def GetValue(self):
         return self.setting
@@ -732,7 +730,7 @@ class Setting(noname.MyDialog_Setting):
         return self.add_new_name.names
 
     def az_show(self, event):
-        self.m_radioBox_az_div.SetSelection(self.azur_lane_div_type)
+        self.m_radioBox_az_div.SetSelection(self.azur_lane_setting.div_type)
         self.m_radioBox_az_type.SetSelection(self.azur_lane_export_type)
 
         self.m_radioBox_type_use.SetSelection(self.azur_lane_use_default)
@@ -1030,12 +1028,9 @@ class MenuChoice(noname.MyDialog_menu):
 
         self.m_sdbSizer5OK.Enable(False)
         self.m_sdbSizer5Cancel.Enable(False)
-        os.system(os.path.join(self.path, 'files\\menu_ctrl.exe'))
+        os.system(r'"%s"' % os.path.join(self.path, 'files\\menu_ctrl.exe'))
         self.m_sdbSizer5OK.Enable(True)
         self.m_sdbSizer5Cancel.Enable(True)
-
-    def gets(self):
-        return self.info[0],self.info[1]
 
 
 def main_part(e):

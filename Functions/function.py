@@ -1,14 +1,11 @@
+import functools
 import re
 
 import PIL.Image
 import numpy as np
-import os
-import functools
 
 from Classes import InfoClasses
 from Functions import tools
-
-functools.partial(os.makedirs, exist_ok=True)
 
 
 def find(s, l):

@@ -1,5 +1,6 @@
+import functools
 import os
-import collections
+import collections.abc
 
 
 class PerInfo(object):
@@ -120,7 +121,7 @@ class KeyExistError(KeyError):
 
 
 class PerInfoList(object):
-    def __init__(self, item: collections.Iterable = None):
+    def __init__(self, item: collections.abc.Iterable = None):
 
         self._info_dict = {}
 
@@ -196,8 +197,14 @@ class PerInfoList(object):
         else:
             return False
 
-    def remove(self, item: collections.Iterable):
+    def is_all_able(self):
+        return not bool(self.build_unable())
+
+    def remove(self, item: collections.abc.Iterable):
         return PerInfoList(filter(lambda x: x not in item, self))
+
+    def get_new(self, item: collections.abc.Iterable):
+        return PerInfoList(filter(lambda x: x not in self, item))
 
     def append_name(self, name, names_key):
 
@@ -277,9 +284,7 @@ class PerInfoList(object):
 
     def build_able(self):
         val = (filter(lambda _x: _x.is_able_work, self))
-        cla = PerInfoList()
-
-        list(map(lambda _x: cla.append_self(_x), val))
+        cla = PerInfoList(val)
 
         return cla
 
@@ -306,7 +311,47 @@ class PerInfoList(object):
         return cla
 
 
-if __name__ == '__main__':
+class SettingHolder(object):
+    def __init__(self, setting: dict = None):
+        self._sys_dic = {}
+        self._sys_list = []
+
+        if type(setting) is dict:
+            self.from_dict(setting)
+
+    def __getattr__(self, item):
+        return f'无该设定："{item}"'
+
+    def __setattr__(self, key, value):
+        super(SettingHolder, self).__setattr__(key, value)
+
+        if key not in ['_sys_list', '_sys_dic']:
+            self._sys_dic[key] = value
+            if key not in self._sys_list:
+                self._sys_list.append(key)
+            else:
+                pass
+
+    def __str__(self):
+        dicts = self.__dict__
+        keys = dicts.keys()
+        val = functools.reduce(lambda x, y: f'{x}\n\t{y}：{dicts[y]}', keys, f'class:\tSettingHolder')
+
+        return val
+
+    def to_dict(self):
+        val = self.__dict__.copy()
+        del val['_sys_dic']
+        del val['_sys_list']
+        return val
+
+    def from_dict(self, setting: dict):
+        keys = setting.keys()
+        values = setting.values()
+        list(map(self.__setattr__, keys, values))
+
+
+if __name__ == '__main__' and False:
     a = PerInfoList()
     d = ['ass', 'asss', 'assss', 'asssss', 'assssss']
     a.append_name('ass', {})
@@ -324,3 +369,14 @@ if __name__ == '__main__':
     c = a.build_skip(d, )
     for gg in c:
         print(gg)
+
+if __name__ == '__main__':
+    b = {"open_dir": True, "skip_had": True, "auto_open": True, "finish_exit": False, "clear_list": True,
+         "save_all": False, "dir_menu": False, "dir_bg": False}
+    a = SettingHolder(b)
+    print(a.to_dict())
+    print(a.__dict__)
+
+    a.open_dir = False
+
+    print(a)
