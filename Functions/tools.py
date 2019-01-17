@@ -239,6 +239,12 @@ def all_file_path(dir_name):
     return files, dict_out
 
 
+def format_str(val_set, val):
+    value = list(map(lambda x: f'文件夹：{x["dir"]},格式：{x["pattern"]}', val))
+
+    val_set.Set(value)
+
+
 if __name__ == '__main__' and False:
     a = ["2222", "3333", "阿贝克隆比abeikelongbi", "阿芙乐尔afuleer", "阿赫野aheye", "爱宕aidang", "爱丁堡aidingbao",
          "埃尔德里奇aierdeliqi",

@@ -1,6 +1,8 @@
+import collections.abc
 import functools
 import os
-import collections.abc
+
+import wx
 
 
 class PerInfo(object):
@@ -311,31 +313,143 @@ class PerInfoList(object):
         return cla
 
 
+class PerHolder(object):
+    def __init__(self, name, val):
+        self.name = name
+        self.val = val
+
+        self._link_set: collections.Callable = None
+        self._link_get: collections.Callable = None
+
+    def __str__(self):
+        return f"\n" \
+            f"\tclass:PerHolder" \
+            f"\tname：{self.name}\n" \
+            f"\tval：{self.val}\n" \
+            f"\tset_link：{self.set_link}\n" \
+            f"\tset_link：{self.get_link}\n"
+
+    @property
+    def set_link(self):
+        return self._link_set
+
+    @set_link.setter
+    def set_link(self, func: collections.abc.Callable):
+        if isinstance(func, collections.abc.Callable):
+            self._link_set = func
+
+    @property
+    def get_link(self):
+        return self._link_get
+
+    @get_link.setter
+    def get_link(self, func):
+        if isinstance(func, collections.abc.Callable):
+            self._link_get = func
+
+    @property
+    def value(self):
+        return self.val
+
+    def set_value(self):
+        if isinstance(self.set_link, collections.abc.Callable):
+            self.set_link(self.val)
+
+    def get_value(self):
+        if isinstance(self.get_link, collections.abc.Callable):
+            self.val = self.get_link()
+
+
+class PattenEdit(PerHolder):
+    def __init__(self, name, val):
+        super(PattenEdit, self).__init__(name, val)
+        if not isinstance(val, list):
+            raise TypeError
+        self.format_work = lambda x: f'文件夹：{x["dir"]},格式：{x["pattern"]}'
+        self._value = list(map(self.format_work, val))
+
+    def __str__(self):
+        return f"\n" \
+            f"\tclass:PattenEdit\n" \
+            f"\tname：{self.name}\n" \
+            f"\tval：{self.val}\n" \
+            f"\tset_link：{self.set_link}\n" \
+            f"\tset_link：{self.get_link}\n"
+
+    def set_value(self):
+        if isinstance(self.set_link, collections.abc.Callable):
+            self.set_link(self._value)
+
+    def append(self, info_dict):
+        index = len(self.val)
+        self.val.append(info_dict)
+        self._value.append(self.format_work(info_dict))
+        return index
+
+    def delete(self, index):
+        del self.val[index]
+        del self._value[index]
+
+    def move_up(self, index):
+        if index > 1:
+            temp = self.val[index - 1]
+            self.val[index - 1] = self.val[index]
+            self.val[index] = temp
+
+            self._value[index - 1] = self.format_work(self.val[index - 1])
+            self._value[index] = self.format_work(self.val[index])
+            return index - 1
+        else:
+            return index
+
+    def move_down(self, index):
+        if index < len(self.val):
+            temp = self.val[index + 1]
+            self.val[index + 1] = self.val[index]
+            self.val[index] = temp
+
+            self._value[index + 1] = self.format_work(self.val[index + 1])
+            self._value[index] = self.format_work(self.val[index])
+            return index + 1
+        else:
+            return index
+
+
 class SettingHolder(object):
     def __init__(self, setting: dict = None):
         self._sys_dic = {}
         self._sys_list = []
+        self.able = []
 
         if type(setting) is dict:
             self.from_dict(setting)
 
     def __getattr__(self, item):
-        return f'无该设定："{item}"'
+        if item in self._sys_list:
+            return self._sys_dic[item]
+        else:
+            raise AttributeError
 
     def __setattr__(self, key, value):
-        super(SettingHolder, self).__setattr__(key, value)
 
-        if key not in ['_sys_list', '_sys_dic']:
-            self._sys_dic[key] = value
+        if key in ['_sys_list', '_sys_dic', 'able']:
+            super(SettingHolder, self).__setattr__(key, value)
+        else:
             if key not in self._sys_list:
                 self._sys_list.append(key)
-            else:
-                pass
+                if isinstance(value, list):
+                    self._sys_dic[key] = PattenEdit(key, value)
+                else:
+                    self._sys_dic[key] = PerHolder(key, value)
+
+    def __getitem__(self, item):
+        return self.__getattr__(item)
+
+    def __setitem__(self, key, value):
+        return self.__setattr__(key, value)
 
     def __str__(self):
-        dicts = self.__dict__
-        keys = dicts.keys()
-        val = functools.reduce(lambda x, y: f'{x}\n\t{y}：{dicts[y]}', keys, f'class:\tSettingHolder')
+        val = functools.reduce(lambda x, y: f'{x}\n\t{y.name}：{y}', self._sys_dic.values(), f'class:\tSettingHolder')
 
         return val
 
@@ -349,6 +463,86 @@ class SettingHolder(object):
         keys = setting.keys()
         values = setting.values()
         list(map(self.__setattr__, keys, values))
+
+    def link_val(self, key, link_set, link_get):
+        if key in self._sys_list:
+            self._sys_dic[key].set_link = link_set
+            self._sys_dic[key].get_link = link_get
+
+    def link_dict(self, val: dict):
+        list(map(lambda x: self.link_val(x, val[x][0], val[x][1]), val.keys()))
+
+    def initial_val(self):
+        val = self._sys_list
+        list(map(lambda x: self._sys_dic[x].set_value(), val))
+
+    def get_value(self):
+        val = self._sys_list
+        list(map(lambda x: self._sys_dic[x].get_value(), val))
+
+
+class TeamWork(object):
+    def __init__(self, group_t, *args):
+        """
+
+        :param group: set able work
+        :param args: else need else work method keys and values
+            ->key1=[method1-t,method1-f], key2=[method2-t,method2-f], ...
+        """
+        self.group_t = group_t
+
+        self.args = args
+
+    def __call__(self, val: bool):
+        list(map(lambda x: x.Enable(val), self.group_t))
+
+        if val:
+            list(map(lambda x: x[0](), self.args))
+        else:
+            list(map(lambda x: x[1](), self.args))
+
+
+class NamesEdit(collections.OrderedDict):
+    def __init__(self, names):
+        super().__init__(names)
+
+    def __getattr__(self, item):
+        if item in self.keys():
+            return self[item]
+        else:
+            raise AttributeError
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return super(NamesEdit, self).__getitem__(item)
+        if isinstance(item, int):
+            it = list(self.keys())
+            return self[it[item]]
+
+    def __delitem__(self, key):
+        if isinstance(key, str):
+            super(NamesEdit, self).__delitem__(key)
+        if isinstance(key, int):
+            it = list(self.keys())
+            del self[it[key]]
+
+    def append(self, key, value):
+        if key not in self.keys():
+            var = wx.MessageBox(f"该键：{key}已经存在了，继续将会覆盖原有值！", '提示', wx.YES_NO)
+            if var == wx.YES:
+                self[key] = value
+        else:
+            self[key] = value
+
+    def edit(self, index, value):
+        self[index] = value
+
+    def del_name(self, index):
+        del self[index]
+
+    def build_show(self):
+
+        return list(map(lambda x: f"key:{x},value：{self[x]}", self.keys()))
 
 
 if __name__ == '__main__' and False:
@@ -370,13 +564,21 @@ if __name__ == '__main__' and False:
     for gg in c:
         print(gg)
 
-if __name__ == '__main__':
+if __name__ == '__main__' and False:
+    # print(dict == list)
     b = {"open_dir": True, "skip_had": True, "auto_open": True, "finish_exit": False, "clear_list": True,
          "save_all": False, "dir_menu": False, "dir_bg": False}
     a = SettingHolder(b)
-    print(a.to_dict())
-    print(a.__dict__)
+    # print(a.to_dict())
+    # print(a.__dict__)
+    a.skip_had.set_link = lambda x: print(x)
+    a.skip_had.get_value()
 
-    a.open_dir = False
+    print(a.skip_had)
+    # print(a)
 
-    print(a)
+if __name__ == '__main__':
+    n = {'a': 1, 'b': 2, 'n': 3, 'c': 4, 'd': 5, }
+    a = NamesEdit(n)
+    print(a['a'])
+    print(a.build_show())

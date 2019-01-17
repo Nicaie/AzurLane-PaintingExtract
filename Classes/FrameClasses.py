@@ -269,9 +269,9 @@ class MainFrame(noname.MyFrame1):
         dialog.Show()
 
     def setting(self, event):
-        dialog = Setting(self, self.setting_self, self.default, self.start_path, self.painting.info,
-                         self.painting.names, self.painting.is_able_add(),
-                         self.setting_page)
+        dialog = SettingFrame(self, self.setting_self, self.default, self.start_path, self.painting.info,
+                              self.painting.names, self.painting.is_able_add(),
+                              self.setting_page)
         temp = dialog.ShowModal()
         if temp == 0:
             if dialog.IsChange:
@@ -329,49 +329,19 @@ class Writer(noname.MyDialog_enter_name):
         return self.info
 
 
-class Setting(noname.MyDialog_Setting):
-    lock: bool
+class SettingFrame(noname.MyDialog_Setting):
 
     def __init__(self, parent, setting_dic, default, def_path, info, names, able_add, setting_select):
-        super().__init__(parent=parent)
+        super().__init__(parent)
 
         self.info = info
         self.path = def_path
+
         temp = wx.Image('%s\\files\\bg_story_litang.png' % self.path, wx.BITMAP_TYPE_PNG)
         temp = temp.ConvertToBitmap()
         self.m_bitmap2.SetBitmap(temp)
 
-        self.azur_lane_setting = InfoClasses.SettingHolder(setting_dic["azur_lane"])
-        self.full_setting = InfoClasses.SettingHolder(setting_dic["full"])
-        print(self.azur_lane_setting)
-        print(self.full_setting)
-
-
-        self.setting = setting_dic
-        self.default = default
-
-
-        self.IsChange = False
-        self.lock = self.default["lock"]
-        self.export = self.default["export"]
-
-        self.az_div_list = []
-        self.reset_az_pattern()
-        self.index = len(self.az_div_list) + 1
-
-        self.__choice = -1
-        self.m_bpButton_del.Enable(False)
-        self.m_bpButton_up.Enable(False)
-        self.m_bpButton_down.Enable(False)
-
-        self.m_bpButton6_default_mesh.Enable(False)
-        self.m_bpButton_defualt_tex.Enable(False)
-
-        self.default_tex_pattern = "^.+\\.[pP][Nn][Gg]$"
-        self.default_mesh_pattern = "^.+-mesh\\.[oO][Bb][jJ]$"
-
-        self.tex_work = False
-        self.mesh_work = False
+        self.set_val = WorkClasses.Setting(self, setting_dic, default, def_path, info, able_add, setting_select)
 
         self.add_new_name = WorkClasses.Add(self, self.info, names, self.path)
         self.change_name_cn = WorkClasses.ChangeName(self, self.path)
@@ -379,243 +349,59 @@ class Setting(noname.MyDialog_Setting):
         self.encrypt = WorkClasses.EncryptImage(self)
         self.crypt = WorkClasses.CryptImage(self)
 
-        self.able_add = able_add
-        self.able_work()
-        self.setting_select = setting_select
-
-        self.m_notebook3.SetSelection(self.setting_select)
-
-        self.m_radioBox_im.Enable(False)
-        self.m_bpButton7.Enable(False)
-        self.m_choice_type_in.Enable(False)
-        self.m_choice_type.Enable(False)
-
-        self.names = {}
-
     def ok_click(self, event):
-        self.change_work()
-        self.IsChange = True
-        self.Destroy()
+        self.set_val.ok_click()
 
     def apply_click(self, event):
-        self.change_work()
-        self.IsChange = True
-        self.m_sdbSizer4Apply.Enable(False)
+        self.set_val.apply_click()
 
     def change(self, event):
-        self.m_sdbSizer4Apply.Enable(True)
+        self.set_val.change()
 
     def cancel_click(self, event):
-        self.IsChange = False
-        self.Destroy()
+        self.set_val.cancel_click()
 
     def show_choice(self, event):
-        self.az_show(event)
-
-        self.m_checkBox_autoopen.SetValue(self.open_dir_after_finish)
-        self.m_checkBox_pass_finished.SetValue(self.skip_had)
-        self.m_checkBox_open_temp.SetValue(self.auto_open_choice_pic)
-        self.m_checkBox4_finish_exit.SetValue(self.finish_exit)
-        self.m_checkBox_clear.SetValue(self.clear_list)
-
-        self.m_checkBox_save_all.SetValue(not self.save_all)
-
-        self.m_dirPicker_export.SetPath(self.export)
-
-        self.m_toggleBtn_lock.SetValue(self.lock)
-
-        self.change_div(event)
-
-        self.change_name_cn.show_all()
+        self.set_val.show_choice()
 
     def change_work(self):
-        self.setting["azur_lane"]["div_type"] = self.m_radioBox_az_div.GetSelection()
-        self.setting["azur_lane"]["export_type"] = self.m_radioBox_az_type.GetSelection()
-        self.setting['azur_lane']['div_use'] = self.m_radioBox_type_use.GetSelection()
-
-        self.setting["azur_lane"]["new_dir"] = self.m_checkBox_az_dir.GetValue()
-        self.setting["azur_lane"]["export_with_cn"] = self.m_checkBox_in_cn.GetValue()
-
-        self.setting['azur_lane']['tex_limit'] = self.m_textCtrl_tex_limit.GetValue()
-        self.setting['azur_lane']['mesh_limit'] = self.m_textCtrl_mesh_limit.GetValue()
-        self.setting['azur_lane']['divide_list'] = self.azur_lane_divide_list
-
-        self.setting["azur_lane"]["input_use"] = self.m_radioBox_im.GetSelection()
-
-        self.setting["full"]["open_dir"] = self.m_checkBox_autoopen.GetValue()
-        self.setting["full"]["skip_had"] = self.m_checkBox_pass_finished.GetValue()
-        self.setting["full"]["auto_open"] = self.m_checkBox_open_temp.GetValue()
-        self.setting["full"]["finish_exit"] = self.m_checkBox4_finish_exit.GetValue()
-        self.setting["full"]['clear_list'] = self.m_checkBox_clear.GetValue()
-
-        self.setting["full"]['save_all'] = self.m_checkBox_save_all.GetValue()
-
-        self.lock = self.default['lock'] = self.m_toggleBtn_lock.GetValue()
-
-        if self.lock:
-            self.default["azur_lane"]['default_tex_dir'] = self.m_dirPicker_az_tex_dir.GetPath()
-            self.default["azur_lane"]['default_mesh_dir'] = self.m_dirPicker_az_mesh_dir.GetPath()
-
-            self.default['export'] = self.m_dirPicker_export.GetPath()
-
-        key_change = self.change_name_cn.get_change()
-        key_add = self.add_new_name.get_new_dic()
-
-        self.names = key_add
-        for key_add_per in key_change.keys():
-            if self.names[key_add_per] != key_change[key_add_per]:
-                self.names[key_add_per] = key_change[key_add_per]
-            else:
-                continue
-
-        with open(self.path + "\\files\\names.json", 'w')as file:
-            json.dump(self.names, file)
-
-        self.setting_select = self.m_notebook3.GetSelection()
+        self.set_val.change_work()
 
     def lock_address(self, event):
-        self.change(event)
-        self.IsChange = True
-        self.lock = self.default['lock'] = self.m_toggleBtn_lock.GetValue()
-
-        self.m_dirPicker_export.Enable(not self.lock)
-
-        self.m_dirPicker_az_mesh_dir.Enable(not self.lock)
-        self.m_dirPicker_az_tex_dir.Enable(not self.lock)
+        self.set_val.lock_address()
 
     def az_add(self, event):
-        self.change(event)
-        dialog = AddPattern(self, self.index)
-
-        dialog.ShowModal()
-        if dialog.is_ok:
-            self.index += 1
-            index, name, dir_path, pattern = dialog.get()
-            self.azur_lane_divide_list.append({'name': name, 'dir': dir_path, 'pattern': pattern})
-
-            self.m_checkList_az_limits.Clear()
-            self.reset_az_pattern()
-            self.m_checkList_az_limits.Set(self.az_div_list)
+        self.set_val.az_add()
 
     def az_del(self, event):
-        self.change(event)
-        self.m_checkList_az_limits.Clear()
-        if self.azur_lane_divide_list[self.__choice]['name'] == 'else':
-            pass
-        else:
-            del self.azur_lane_divide_list[self.__choice]
-
-        self.m_bpButton_del.Enable(False)
-        self.m_bpButton_up.Enable(False)
-        self.m_bpButton_down.Enable(False)
-        self.reset_az_pattern()
-        self.m_checkList_az_limits.Set(self.az_div_list)
+        self.set_val.az_del()
 
     def choice(self, event):
-        self.__choice = self.m_checkList_az_limits.GetSelection()
-
-        if self.__choice != 0:
-            self.m_bpButton_del.Enable(True)
-        if self.__choice <= 1:
-            self.m_bpButton_up.Enable(False)
-        else:
-            self.m_bpButton_up.Enable(True)
-        if self.__choice == len(self.azur_lane_divide_list) - 1 or self.__choice == 0:
-            self.m_bpButton_down.Enable(False)
-        else:
-            self.m_bpButton_down.Enable(True)
+        self.set_val.choice()
 
     def change_type(self, event):
-        self.change(event)
-
-        self.az_type_use(event)
+        self.set_val.change_type()
 
     def change_div(self, event):
-        self.change(event)
-        if self.m_radioBox_type_use.GetSelection() == 0:
-            if self.m_radioBox_az_div.GetSelection() == 2:
-                self.change(event)
-                self.m_checkList_az_limits.Clear()
-                self.m_checkList_az_limits.Set([
-                    r'1）其他：^.+$',
-                    r'2）皮肤：^[a-zA-Z0-9_]+_\d$',
-                    r'3）改造：^[a-zA-Z0-9_]+_[gG]$',
-                    r'4）婚纱：^[a-zA-Z0-9_]+_[hH]$',
-                    r'5）原皮：^[a-zA-Z0-9_]+$',
-                ])
-            else:
-                self.m_checkList_az_limits.Clear()
+        self.set_val.change_div()
 
     def change_pattern(self, event):
-        self.change(event)
-
-        index_2 = self.m_checkList_az_limits.GetSelection()
-        dialog = AddPattern(self, index_2 + 1, self.azur_lane_divide_list[index_2]['name'],
-                            self.azur_lane_divide_list[index_2]['pattern'], self.azur_lane_divide_list[index_2]['dir'])
-        dialog.ShowModal()
-        if dialog.is_ok:
-            index, name, dir_path, pattern = dialog.get()
-            self.azur_lane_divide_list[index_2] = ({'name': name, 'dir': dir_path, 'pattern': pattern})
-
-            self.m_checkList_az_limits.Clear()
-            self.reset_az_pattern()
-            self.m_checkList_az_limits.Set(self.az_div_list)
+        self.set_val.change_pattern()
 
     def az_up(self, event):
-
-        temp = self.azur_lane_divide_list[self.__choice - 1]
-
-        self.azur_lane_divide_list[self.__choice - 1] = self.azur_lane_divide_list[self.__choice]
-
-        self.azur_lane_divide_list[self.__choice] = temp
-
-        self.change(event)
-
-        self.reset_az_pattern()
-        self.m_checkList_az_limits.Clear()
-        self.m_checkList_az_limits.Set(self.az_div_list)
-
-        self.__choice -= 1
-        self.m_checkList_az_limits.SetSelection(self.__choice)
-
-        self.choice(event)
+        self.set_val.az_up()
 
     def az_down(self, event):
-        temp = self.azur_lane_divide_list[self.__choice + 1]
-
-        self.azur_lane_divide_list[self.__choice + 1] = self.azur_lane_divide_list[self.__choice]
-
-        self.azur_lane_divide_list[self.__choice] = temp
-
-        self.change(event)
-
-        self.reset_az_pattern()
-        self.m_checkList_az_limits.Clear()
-        self.m_checkList_az_limits.Set(self.az_div_list)
-
-        self.__choice += 1
-        self.m_checkList_az_limits.SetSelection(self.__choice)
-
-        self.choice(event)
+        self.set_val.az_down()
 
     def default_mesh(self, event):
-        self.change(event)
-
-        self.m_textCtrl_mesh_limit.SetLabel(self.default_mesh_pattern)
-        self.mesh_work = True
+        self.set_val.default_mesh()
 
     def default_tex(self, event):
-        self.change(event)
-
-        self.m_textCtrl_tex_limit.SetLabel(self.default_tex_pattern)
-        self.tex_work = True
+        self.set_val.default_tex()
 
     def change_reset_mesh(self, event):
-        self.change(event)
-        if self.mesh_work:
-            self.mesh_work = False
-        else:
-            self.m_bpButton6_default_mesh.Enable(True)
+        self.set_val.change_reset_mesh()
 
     def change_reset_tex(self, event):
         self.change(event)
@@ -651,49 +437,10 @@ class Setting(noname.MyDialog_Setting):
         self.setting_select = self.m_notebook3.GetSelection()
 
     def change_input(self, event):
-        self.change(event)
-        if self.m_radioBox_type_use.GetSelection() == 0:
-            choice = self.m_radioBox_im.GetSelection()
-            tex = [
-                r'^.+\.[Pp][Nn][Gg]$',
-                r'^[^_\s]+_\d\.[Pp][Nn][Gg]$',
-                r'^[^_\s]+_[Hh]\.[Pp][Nn][Gg]$',
-                r'^[^_\s]+_[Gg]\.[Pp][Nn][Gg]$',
-                r'^[^_\s]+(_younv){0,1}\.[Pp][Nn][Gg]$',
-            ]
-            mesh = [
-                r'^.+-mesh\.[oO][Bb][Jj]$',
-                r'^[^_\s]+_\d-mesh\.[oO][Bb][Jj]$',
-                r'^[^_\s]+_[Hh]-mesh\.[oO][Bb][Jj]$',
-                r'^[^_\s]+_[Gg]-mesh\.[oO][Bb][Jj]$',
-                r'^[^_\s]+(_younv){0,1}-mesh\.[oO][Bb][Jj]$',
-            ]
-            if choice == 0:
-                self.m_textCtrl_tex_limit.SetLabel(tex[0])
-                self.m_textCtrl_mesh_limit.SetLabel(mesh[0])
-            elif choice == 1:
-                self.m_textCtrl_tex_limit.SetLabel(tex[1])
-                self.m_textCtrl_mesh_limit.SetLabel(mesh[1])
-            elif choice == 2:
-                self.m_textCtrl_tex_limit.SetLabel(tex[2])
-                self.m_textCtrl_mesh_limit.SetLabel(mesh[2])
-            elif choice == 3:
-                self.m_textCtrl_tex_limit.SetLabel(tex[3])
-                self.m_textCtrl_mesh_limit.SetLabel(mesh[3])
-            elif choice == 4:
-                self.m_textCtrl_tex_limit.SetLabel(tex[4])
-                self.m_textCtrl_mesh_limit.SetLabel(mesh[4])
-            else:
-                pass
-        self.m_bpButton_defualt_tex.Enable(False)
-        self.m_bpButton6_default_mesh.Enable(False)
+        self.set_val.change_input()
 
     def type_ch(self, event):
-        if self.m_simplebook4.GetSelection() == 0:
-            self.m_simplebook4.SetSelection(1)
-
-        elif self.m_simplebook4.GetSelection() == 1:
-            self.m_simplebook4.SetSelection(0)
+        self.set_val.type_ch()
 
     def in_file(self, event):
         self.encrypt.in_file()
@@ -730,112 +477,16 @@ class Setting(noname.MyDialog_Setting):
         return self.add_new_name.names
 
     def az_show(self, event):
-        self.m_radioBox_az_div.SetSelection(self.azur_lane_setting.div_type)
-        self.m_radioBox_az_type.SetSelection(self.azur_lane_export_type)
-
-        self.m_radioBox_type_use.SetSelection(self.azur_lane_use_default)
-
-        self.m_checkBox_az_dir.SetValue(self.azur_lane_new_dir)
-        self.m_checkBox_in_cn.SetValue(self.azur_lane_with_cn)
-
-        self.m_dirPicker_az_tex_dir.SetPath(self.azur_lane_default_tex_dir)
-        self.m_dirPicker_az_mesh_dir.SetPath(self.azur_lane_default_mesh_dir)
-
-        self.m_textCtrl_tex_limit.SetLabel(self.azur_lane_tex_limit)
-        self.m_textCtrl_mesh_limit.SetLabel(self.azur_lane_mesh_limit)
-
-        self.m_checkList_az_limits.Set(self.az_div_list)
-
-        self.m_radioBox_im.SetSelection(self.azur_lane_input_use)
-
-        self.az_type_use(event=event)
+        self.set_val.az_show(event)
 
     def az_type_use(self, event):
-        if self.m_radioBox_type_use.GetSelection() == 0:
-            self.m_staticText15.Enable(False)
-            self.m_staticText161.Enable(False)
-            self.m_staticText171.Enable(False)
-
-            self.m_textCtrl_mesh_limit.Enable(False)
-            self.m_textCtrl_tex_limit.Enable(False)
-
-            self.m_textCtrl_mesh_limit.SetLabel(self.default_mesh_pattern)
-            self.m_textCtrl_tex_limit.SetLabel(self.default_tex_pattern)
-
-            self.m_radioBox_im.Enable(True)
-            self.change_input(event)
-
-            self.m_bpButton_del.Enable(False)
-            self.m_bpButton_add.Enable(False)
-
-            self.m_bpButton_up.Enable(False)
-            self.m_bpButton_down.Enable(False)
-
-            self.m_bpButton6_default_mesh.Enable(False)
-            self.m_bpButton_defualt_tex.Enable(False)
-
-            self.m_checkList_az_limits.Enable(False)
-
-            ####
-
-            self.m_radioBox_az_div.Enable(True)
-
-            self.change_div(event=event)
-
-        else:
-            self.m_staticText15.Enable(True)
-            self.m_staticText161.Enable(True)
-            self.m_staticText171.Enable(True)
-
-            self.m_textCtrl_mesh_limit.Enable(True)
-            self.m_textCtrl_tex_limit.Enable(True)
-
-            self.m_bpButton_del.Enable(False)
-            self.m_bpButton_add.Enable(True)
-
-            self.m_bpButton_up.Enable(False)
-            self.m_bpButton_down.Enable(False)
-
-            self.m_textCtrl_mesh_limit.SetLabel(self.azur_lane_mesh_limit)
-            self.m_textCtrl_tex_limit.SetLabel(self.azur_lane_tex_limit)
-
-            self.m_radioBox_im.Enable(False)
-
-            if self.m_textCtrl_tex_limit.GetValue() != self.default_tex_pattern:
-                self.m_bpButton_defualt_tex.Enable(True)
-            else:
-                self.m_bpButton_defualt_tex.Enable(False)
-            if self.m_textCtrl_mesh_limit.GetValue() != self.default_mesh_pattern:
-                self.m_bpButton6_default_mesh.Enable(True)
-            else:
-                self.m_bpButton6_default_mesh.Enable(False)
-
-            self.m_checkList_az_limits.Enable(True)
-
-            ####
-
-            self.m_radioBox_az_div.Enable(False)
-
-            self.reset_az_pattern()
-            self.m_checkList_az_limits.Clear()
-            self.m_checkList_az_limits.Set(self.az_div_list)
+        self.set_val.az_type_use(event)
 
     def reset_az_pattern(self):
-        self.az_div_list.clear()
-        for value in range(len(self.azur_lane_divide_list)):
-            val_key = str(value + 1)
-            value = self.azur_lane_divide_list[value]
-            self.az_div_list.append(
-                '%s)%s:\t%s' % (val_key, value['dir'], value['pattern']))
+        self.set_val.reset_az_pattern()
 
     def able_work(self):
-        if not self.able_add:
-            self.m_listBox_new.Enable(False)
-            self.m_gauge5.Enable(False)
-        else:
-            self.m_listBox_new.Enable(True)
-            self.m_gauge5.Enable(True)
-            self.add_new_name.show_info()
+        self.set_val.able_work()
 
 
 class AddPattern(noname.MyDialog_limit):
